@@ -28,23 +28,59 @@ class CadColumnInspector:
         # Top frame for buttons and filters
         top_frame = tk.Frame(self.root, pady=10)
         top_frame.pack(side=tk.TOP, fill=tk.X)
-        
+
         # Button panel
         self.button_panel = ButtonPanel(
             top_frame,
             on_load_dxf=self.load_dxf,
             on_connect_cad=self.connect_to_cad,
-            on_export=self.export_to_excel
+            on_export=self.export_to_excel,
+            on_remove_duplicates=self.remove_duplicates
         )
-        
+
         # Filter frame
         self.filter_frame = FilterFrame(top_frame, on_filter_change=self.refresh_display)
-        
+
         # Data table
         self.data_table = DataTable(self.root, on_double_click=self.zoom_to_cad_object)
-        
+
         # Status bar
         self.status_bar = StatusBar(self.root)
+
+    def remove_duplicates(self):
+        """Remove duplicate shapes with the same code and all properties, and shapes whose centers are too close (<20mm)"""
+        seen = set()
+        unique_data = []
+        min_dist_sq = 20 * 20  # 20mm squared
+        for data in self.all_data:
+            # Use tuple of all relevant properties as key
+            key = (
+                data.get('type'),
+                data.get('layer'),
+                data.get('size'),
+                data.get('cx'),
+                data.get('cy'),
+                data.get('area'),
+                data.get('code', '')
+            )
+            if key in seen:
+                continue
+            cx, cy = data.get('cx'), data.get('cy')
+            too_close = False
+            for d in unique_data:
+                dcx, dcy = d.get('cx'), d.get('cy')
+                if dcx is not None and dcy is not None and cx is not None and cy is not None:
+                    dist_sq = (cx - dcx) ** 2 + (cy - dcy) ** 2
+                    if dist_sq < min_dist_sq:
+                        too_close = True
+                        break
+            if not too_close:
+                seen.add(key)
+                unique_data.append(data)
+        removed = len(self.all_data) - len(unique_data)
+        self.all_data = unique_data
+        self.refresh_display()
+        self.status_bar.set_status(f"Removed {removed} duplicates/overlaps. Remaining: {len(self.all_data)}")
     
     def connect_to_cad(self):
         success, message = self.acad_connector.connect()

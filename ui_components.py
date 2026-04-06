@@ -72,23 +72,26 @@ class FilterFrame:
         }
 
 class ButtonPanel:
-    def __init__(self, parent, on_load_dxf, on_connect_cad, on_export):
+    def __init__(self, parent, on_load_dxf, on_connect_cad, on_export, on_remove_duplicates=None):
         self.parent = parent
-        self._create_buttons(on_load_dxf, on_connect_cad, on_export)
-    
-    def _create_buttons(self, on_load_dxf, on_connect_cad, on_export):
+        self._create_buttons(on_load_dxf, on_connect_cad, on_export, on_remove_duplicates)
+
+    def _create_buttons(self, on_load_dxf, on_connect_cad, on_export, on_remove_duplicates=None):
         btn_frame = tk.Frame(self.parent, pady=10)
         btn_frame.pack(side=tk.TOP, fill=tk.X)
-        
+
         btn_frame1 = tk.Frame(btn_frame)
         btn_frame1.pack(side=tk.LEFT, padx=10)
-        
+
         tk.Button(btn_frame1, text="📂 1. Load DXF File", command=on_load_dxf, 
                  width=20, bg="#e1e1e1").pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame1, text="🔗 2. Connect AutoCAD", command=on_connect_cad, 
                  width=20, bg="#d4edda").pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame1, text="📊 3. Export Excel", command=on_export, 
                  width=15).pack(side=tk.LEFT, padx=5)
+        if on_remove_duplicates:
+            tk.Button(btn_frame1, text="🧹 Remove Duplicates", command=on_remove_duplicates, 
+                     width=18, bg="#ffe082").pack(side=tk.LEFT, padx=5)
 
 class StatusBar:
     def __init__(self, parent):
