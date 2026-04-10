@@ -11,12 +11,12 @@ HIGHLIGHT_DURATION = 0.5
 
 # UI Configuration
 COLUMN_WIDTHS = {
-    "ID": 60, 
-    "Type": 100, 
-    "Layer": 150, 
-    "Size (WxH/Dia)": 120, 
-    "Coordinate (X,Y)": 150, 
-    "Area": 120
+    "ID": 60,
+    "Type": 100,
+    "Layer": 150,
+    "Size (WxH/Dia)": 120,
+    "Coordinate (X,Y)": 150,
+    "Area": 120,
 }
 
 WINDOW_SIZE = "900x700"
