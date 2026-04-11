@@ -1,4 +1,8 @@
 # ui_components.py
+# Copyright (c) 2026 Tran Xuan An
+# This file is part of CAD Column Inspector Pro.
+# Licensed under the MIT License.
+
 import tkinter as tk
 from tkinter import ttk
 from config import COLUMN_WIDTHS

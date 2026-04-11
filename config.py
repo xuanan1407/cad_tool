@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Your Name or Company
+# This file is part of CAD Column Inspector Pro.
+# Licensed under the MIT License.
+
 # config.py
 import math
 

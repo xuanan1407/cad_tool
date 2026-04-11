@@ -1,4 +1,8 @@
 # cad_processor.py
+# Copyright (c) 2026 Tran Xuan An
+# This file is part of CAD Column Inspector Pro.
+# Licensed under the MIT License.
+
 import math
 from config import RECTANGLE_TOLERANCE
 
@@ -45,6 +49,9 @@ class CadProcessor:
             and abs(dists[2] - dists[3]) < tolerance
             and abs(dists[4] - dists[5]) < tolerance
             and dists[4] > dists[3]
+            # Copyright (c) 2026 Your Name or Company
+            # This file is part of CAD Column Inspector Pro.
+            # Licensed under the MIT License.
         )
 
     @staticmethod

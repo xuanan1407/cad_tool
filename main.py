@@ -1,4 +1,7 @@
 # main.py
+# Copyright (c) 2026 Tran Xuan An
+# This file is part of CAD Column Inspector Pro.
+# Licensed under the MIT License.
 
 import os
 import tkinter as tk

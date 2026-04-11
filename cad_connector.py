@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Tran Xuan An
+# This file is part of CAD Column Inspector Pro.
+# Licensed under the MIT License.
+
 # cad_connector.py
 import time
 import pythoncom
