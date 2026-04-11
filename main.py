@@ -53,7 +53,12 @@ class CadColumnInspector:
         )
 
         # Data table
-        self.data_table = DataTable(self.root, on_double_click=self.zoom_to_cad_object)
+        self.data_table = DataTable(
+            self.root,
+            on_double_click=lambda event: CadConnector.highlight_object(
+                *map(float, self.data_table.get_selected()[4].split(",")), self.all_data
+            ),
+        )
 
         # Status bar
         self.status_bar = StatusBar(self.root)

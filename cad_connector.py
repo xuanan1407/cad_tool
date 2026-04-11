@@ -20,6 +20,66 @@ from config import (
 
 
 class CadConnector:
+    @staticmethod
+    def highlight_object(x, y, all_data):
+        """Highlight the outline of the shape (rectangle/circle) at (x, y) from all_data."""
+        try:
+            acad_app = win32com.client.GetActiveObject("AutoCAD.Application")
+            doc = acad_app.ActiveDocument
+            mspace = doc.ModelSpace
+
+            # Find the correct data object with (x, y)
+            target_obj = None
+            for d in all_data:
+                if abs(d.get("cx", 0) - x) < 1e-3 and abs(d.get("cy", 0) - y) < 1e-3:
+                    target_obj = d
+                    break
+            if not target_obj:
+                return
+
+            temp_entity = None
+            if "Rectangle" in target_obj["type"]:
+                # Draw the outline of the rectangle
+                size = target_obj["size"].replace(" ", "")
+                if "x" in size:
+                    w, h = [float(v) for v in size.split("x")]
+                else:
+                    w = h = 0
+                cx, cy = target_obj["cx"], target_obj["cy"]
+                # 4 points in order
+                pts = [
+                    (cx - w / 2, cy - h / 2, 0),
+                    (cx + w / 2, cy - h / 2, 0),
+                    (cx + w / 2, cy + h / 2, 0),
+                    (cx - w / 2, cy + h / 2, 0),
+                    (cx - w / 2, cy - h / 2, 0),
+                ]
+                arr = VARIANT(
+                    pythoncom.VT_ARRAY | pythoncom.VT_R8,
+                    [coord for pt in pts for coord in pt],
+                )
+                temp_entity = mspace.AddPolyline(arr)
+                temp_entity.Closed = True
+                temp_entity.Color = COLOR_YELLOW
+                temp_entity.LineWeight = 40
+            elif "Circle" in target_obj["type"]:
+                # Draw the outline of the circle
+                radius = target_obj.get("radius") or (target_obj.get("diameter", 0) / 2)
+                center_point = VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_R8, [x, y, 0])
+                temp_entity = mspace.AddCircle(center_point, radius)
+                temp_entity.Color = COLOR_YELLOW
+                temp_entity.LineWeight = 40
+
+            doc.Regen(0)
+            time.sleep(HIGHLIGHT_DURATION)
+            if temp_entity:
+                temp_entity.Delete()
+                doc.Regen(0)
+        except Exception as e:
+            import logging
+
+            logging.error(f"Error in highlight_object: {e}")
+
     def __init__(self):
         self.acad = None
 
