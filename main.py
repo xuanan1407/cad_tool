@@ -65,10 +65,25 @@ class CadColumnInspector:
 
     def remove_duplicates(self):
         logging.info("remove_duplicates called.")
-        """Remove duplicate shapes with the same code and all properties, and shapes whose centers are too close (<20mm)"""
+        """Remove duplicate shapes with the same code and all properties, and shapes whose centers are too close (user-defined distance)"""
+        # Ask user for minimum center distance (mm)
+        import tkinter.simpledialog
+
+        min_dist = tkinter.simpledialog.askfloat(
+            "Center Distance",
+            "Enter minimum center distance (mm):",
+            initialvalue=20,
+            minvalue=0.01,
+        )
+        if min_dist is None:
+            self.status_bar.set_status("Duplicate removal cancelled.")
+            return
+        if min_dist <= 0:
+            messagebox.showerror("Error", "Distance must be greater than 0!")
+            return
+        min_dist_sq = min_dist * min_dist
         seen = set()
         unique_data = []
-        min_dist_sq = 20 * 20  # 20mm squared
         for data in self.all_data:
             # Use tuple of all relevant properties as key
             key = (
@@ -103,10 +118,10 @@ class CadColumnInspector:
         self.all_data = unique_data
         self.refresh_display()
         self.status_bar.set_status(
-            f"Removed {removed} duplicates/overlaps. Remaining: {len(self.all_data)}"
+            f"Removed {removed} duplicates/overlaps (<{min_dist}mm). Remaining: {len(self.all_data)}"
         )
         logging.info(
-            f"Removed {removed} duplicates/overlaps. Remaining: {len(self.all_data)}"
+            f"Removed {removed} duplicates/overlaps (<{min_dist}mm). Remaining: {len(self.all_data)}"
         )
 
     def connect_to_cad(self):
