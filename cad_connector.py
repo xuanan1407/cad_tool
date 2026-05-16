@@ -69,6 +69,23 @@ class CadConnector:
                 temp_entity = mspace.AddCircle(center_point, radius)
                 temp_entity.Color = COLOR_YELLOW
                 temp_entity.LineWeight = 40
+            elif "Polygon" in target_obj["type"]:
+                # Draw the outline of the polygon
+                raw_poly = target_obj.get("raw_data")
+                if raw_poly:
+                    points = list(raw_poly.get_points())
+                    # Ensure closed by adding first point at end if needed
+                    if len(points) > 2 and points[0] != points[-1]:
+                        points.append(points[0])
+                    # Convert to flat array for VARIANT
+                    arr = VARIANT(
+                        pythoncom.VT_ARRAY | pythoncom.VT_R8,
+                        [coord for pt in points for coord in (pt[0], pt[1], 0)],
+                    )
+                    temp_entity = mspace.AddPolyline(arr)
+                    temp_entity.Closed = True
+                    temp_entity.Color = COLOR_YELLOW
+                    temp_entity.LineWeight = 40
 
             doc.Regen(0)
             time.sleep(HIGHLIGHT_DURATION)

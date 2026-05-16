@@ -72,6 +72,7 @@ class FilterFrame:
         self.on_filter_change = on_filter_change
         self.show_rect = tk.BooleanVar(value=True)
         self.show_circle = tk.BooleanVar(value=True)
+        self.show_polygon = tk.BooleanVar(value=True)
         self._create_filter_frame()
 
     def _create_filter_frame(self):
@@ -90,11 +91,18 @@ class FilterFrame:
             variable=self.show_circle,
             command=self.on_filter_change,
         ).pack(side=tk.LEFT, padx=5)
+        tk.Checkbutton(
+            filter_frame,
+            text="Show Polygons",
+            variable=self.show_polygon,
+            command=self.on_filter_change,
+        ).pack(side=tk.LEFT, padx=5)
 
     def get_filters(self):
         return {
             "show_rect": self.show_rect.get(),
             "show_circle": self.show_circle.get(),
+            "show_polygon": self.show_polygon.get(),
         }
 
 

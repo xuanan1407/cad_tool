@@ -164,9 +164,11 @@ class CadColumnInspector:
             rect_count, rectangles = CadProcessor.process_rectangles_from_dxf(msp)
             # Process circles
             circle_count, circles = CadProcessor.process_circles_from_dxf(msp)
+            # Process polygons
+            polygon_count, polygons = CadProcessor.process_polygons_from_dxf(msp)
 
             # Combine all shapes
-            all_shapes = rectangles + circles
+            all_shapes = rectangles + circles + polygons
 
             # For each shape, find nearest code (text)
             for shape in all_shapes:
@@ -183,10 +185,10 @@ class CadColumnInspector:
 
             # Update status
             self.status_bar.set_status(
-                f"Found: {rect_count} rectangles, {circle_count} circles (Total: {len(self.all_data)})"
+                f"Found: {rect_count} rectangles, {circle_count} circles, {polygon_count} polygons (Total: {len(self.all_data)})"
             )
             logging.info(
-                f"Loaded DXF: {rect_count} rectangles, {circle_count} circles (Total: {len(self.all_data)})"
+                f"Loaded DXF: {rect_count} rectangles, {circle_count} circles, {polygon_count} polygons (Total: {len(self.all_data)})"
             )
 
             # Refresh display with current filters
@@ -194,7 +196,7 @@ class CadColumnInspector:
 
             if not self.all_data:
                 messagebox.showinfo(
-                    "No Data", "No rectangles or circles found in the DXF file!"
+                    "No Data", "No rectangles, circles, or polygons found in the DXF file!"
                 )
                 logging.info("No rectangles or circles found in the DXF file!")
 
@@ -217,6 +219,8 @@ class CadColumnInspector:
             if "Rectangle" in data["type"] and not filters["show_rect"]:
                 continue
             if "Circle" in data["type"] and not filters["show_circle"]:
+                continue
+            if "Polygon" in data["type"] and not filters["show_polygon"]:
                 continue
 
             # Insert into tree (thêm cột Code)

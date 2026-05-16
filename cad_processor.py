@@ -209,3 +209,109 @@ class CadProcessor:
                 )
 
         return circle_count, circles
+
+    @staticmethod
+    def extract_polygon_info(pline):
+        """Extract polygon information from LWPOLYLINE/POLYLINE (closed shapes with >4 points)"""
+        points = list(pline.get_points())
+        # Remove duplicate first point if exists
+        if len(points) > 2 and points[0] == points[-1]:
+            points = points[:-1]
+
+        if len(points) < 3:
+            return None
+
+        xs = [p[0] for p in points]
+        ys = [p[1] for p in points]
+
+        # Calculate center (centroid)
+        cx = round(sum(xs) / len(xs), 2)
+        cy = round(sum(ys) / len(ys), 2)
+
+        # Calculate approximate area using shoelace formula
+        area = 0
+        for i in range(len(points)):
+            j = (i + 1) % len(points)
+            area += points[i][0] * points[j][1]
+            area -= points[j][0] * points[i][1]
+        area = abs(area) / 2
+        area = round(area, 2)
+
+        # Calculate perimeter
+        perimeter = 0
+        for i in range(len(points)):
+            j = (i + 1) % len(points)
+            dx = points[j][0] - points[i][0]
+            dy = points[j][1] - points[i][1]
+            perimeter += math.sqrt(dx * dx + dy * dy)
+        perimeter = round(perimeter, 2)
+
+        return {
+            "type": "Polygon",
+            "layer": pline.dxf.layer,
+            "size": f"{len(points)} vertices",
+            "vertices": len(points),
+            "perimeter": perimeter,
+            "cx": cx,
+            "cy": cy,
+            "area": area,
+            "raw_data": pline,
+        }
+
+    @staticmethod
+    def process_polygons_from_dxf(msp):
+        """Extract closed polygons from DXF modelspace (excluding rectangles and circles)"""
+        polygon_count = 0
+        polygons = []
+
+        # Method 1: LWPOLYLINE closed with more than 4 points
+        for pline in msp.query("LWPOLYLINE"):
+            points = list(pline.get_points())
+            is_closed = pline.closed or (len(points) > 2 and points[0] == points[-1])
+
+            if not is_closed:
+                continue
+
+            # Remove duplicate last point
+            if len(points) > 2 and points[0] == points[-1]:
+                unique_points = points[:-1]
+            else:
+                unique_points = points
+
+            # Skip rectangles (4 points) - they're handled separately
+            if len(unique_points) == 4:
+                continue
+
+            # Only process polygons with 3 or more vertices
+            if len(unique_points) >= 3:
+                info = CadProcessor.extract_polygon_info(pline)
+                if info:
+                    polygon_count += 1
+                    polygons.append(info)
+
+        # Method 2: Also check POLYLINE (old format)
+        for pline in msp.query("POLYLINE"):
+            points = list(pline.get_points())
+            is_closed = pline.is_closed or (len(points) > 2 and points[0] == points[-1])
+
+            if not is_closed:
+                continue
+
+            # Remove duplicate last point
+            if len(points) > 2 and points[0] == points[-1]:
+                unique_points = points[:-1]
+            else:
+                unique_points = points
+
+            # Skip rectangles (4 points)
+            if len(unique_points) == 4:
+                continue
+
+            # Only process polygons with 3 or more vertices
+            if len(unique_points) >= 3:
+                info = CadProcessor.extract_polygon_info(pline)
+                if info:
+                    polygon_count += 1
+                    polygons.append(info)
+
+        return polygon_count, polygons
