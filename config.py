@@ -5,6 +5,10 @@
 # config.py
 import math
 
+# Application Info
+APP_VERSION = "1.0.0"
+APP_NAME = "CAD Column Inspector Pro"
+
 # Constants
 RECTANGLE_TOLERANCE = 0.01
 ZOOM_DISTANCE = 10

@@ -14,14 +14,14 @@ from ui_components import ButtonPanel, FilterFrame, DataTable, StatusBar
 from cad_processor import CadProcessor
 from cad_connector import CadConnector
 from excel_exporter import ExcelExporter
-from config import WINDOW_SIZE
+from config import WINDOW_SIZE, APP_NAME, APP_VERSION
 
 
 class CadColumnInspector:
     def __init__(self, root):
         logging.info("Initializing CadColumnInspector UI...")
         self.root = root
-        self.root.title("CAD Column Inspector Pro - Automation Tool")
+        self.root.title(f"{APP_NAME} v{APP_VERSION} - Automation Tool")
         self.root.geometry(WINDOW_SIZE)
 
         self.acad_connector = CadConnector()

@@ -1,0 +1,6 @@
+# CAD Column Inspector Pro - Dependencies
+ezdxf>=1.0.0
+pandas>=2.0.0
+openpyxl>=3.1.0
+pywin32>=306
+pyautocad>=0.2.0
