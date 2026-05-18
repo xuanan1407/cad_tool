@@ -1,0 +1,6 @@
+# CAD Column Inspector Pro - Dependencies
+# Manual Polygon Selection System v2.0
+
+# For Excel export
+pandas>=2.0.0
+openpyxl>=3.1.0

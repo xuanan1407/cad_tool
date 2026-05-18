@@ -1,0 +1,6 @@
+__pycache__
+cad_tool.log
+build/
+dist/
+*.json
+*.xlsx
