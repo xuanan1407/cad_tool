@@ -359,9 +359,9 @@
   (princ "\n=== CAD Column Auto-Scanner ===")
   
   ;; Ask for tolerance distance
-  (setq tolerance_input (getreal "\nEnter minimum distance between shapes (default 1.0mm): "))
+  (setq tolerance_input (getreal "\nEnter minimum distance between shapes (default 20.0mm): "))
   (if (null tolerance_input)
-    (setq tolerance 1.0)
+    (setq tolerance 20.0)
     (setq tolerance tolerance_input)
   )
   

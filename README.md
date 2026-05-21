@@ -27,11 +27,12 @@ The AutoCAD plugin that runs inside AutoCAD and handles:
 ### 2. **python_processor.py** (Python Backend)
 The Python script that processes exported JSON data:
 - Loads shape data from JSON (supports both single and array formats)
+- **Calculates perimeter** for all shapes (polygons and circles)
 - Displays shape statistics in console
-- Exports all shapes to formatted Excel file with:
-  - Individual shape sections with headers
-  - Property tables (type, area, centroid, radius for circles, etc.)
-  - Complete point coordinate listings
+- Exports to **2-sheet Excel file**:
+  - **Summary sheet**: Statistics grouped by name (count, total area, avg area, total perimeter, avg perimeter)
+  - **Detail sheet**: Individual shape sections with full property tables and point coordinates
+  - Professional formatting with colors, borders, and proper alignment
 
 ## Key Features
 
@@ -280,45 +281,84 @@ The tool exports shape data in JSON array format:
 
 ## Excel Output Format
 
-The generated Excel file contains:
+The generated Excel file contains **2 sheets**:
 
-### Shape Sections
-Each shape has its own section with:
-- **Property table**: Type, name, point count, area, radius (for circles), centroid coordinates, drawing info
+### Sheet 1: Summary (Statistics Table)
+
+A summary table grouped by shape name with:
+- **Name**: Shape identifier from nearest text
+- **Count**: Number of shapes with this name
+- **Total Area**: Sum of all areas for this name
+- **Avg Area**: Average area per shape
+- **Total Perimeter**: Sum of all perimeters for this name
+- **Avg Perimeter**: Average perimeter per shape
+- **TOTAL row**: Grand totals across all shapes
+
+#### Example Summary Sheet:
+```
+SHAPE STATISTICS SUMMARY
+
+Name        | Count | Total Area | Avg Area | Total Perimeter | Avg Perimeter
+------------|-------|------------|----------|-----------------|---------------
+Column-A1   | 3     | 7500.00    | 2500.00  | 600.00          | 200.00
+Column-B1   | 2     | 628.32     | 314.16   | 62.83           | 31.42
+Column-C1   | 5     | 12500.00   | 2500.00  | 1000.00         | 200.00
+TOTAL       | 10    | 20628.32   | 2062.83  | 1662.83         | 166.28
+```
+
+**Use cases:**
+- Quick overview of all shapes by name
+- Compare quantities and sizes
+- Calculate total materials needed
+- Identify patterns or outliers
+
+---
+
+### Sheet 2: Shape Details
+
+Detailed information for each individual shape:
+- **Property table**: Type, name, point count, area, **perimeter**, radius (for circles), centroid coordinates, drawing info
 - **Points table**: Complete list of X, Y, Z coordinates for all vertices (or center for circles)
 
-### Example:
+#### Example Detail Sheet:
 ```
 SHAPE #1
-Property    | Value
-------------|--------
-Name        | Column-A1
-Type        | lwpolyline
-Point Count | 4
-Area        | 10000.00
-Centroid X  | 150.00
-Centroid Y  | 100.00
-Drawing     | FloorPlan.dwg
+Property          | Value
+------------------|--------
+Name              | Column-A1
+Type              | lwpolyline
+Point Count       | 4
+Area (sq units)   | 10000.00
+Perimeter (units) | 400.00
+Centroid X        | 150.00
+Centroid Y        | 100.00
+Drawing           | FloorPlan.dwg
 
 Points:
 Point # | X      | Y      | Z
 --------|--------|--------|----
 1       | 100.00 | 50.00  | 0.00
 2       | 200.00 | 50.00  | 0.00
-...
+3       | 200.00 | 150.00 | 0.00
+4       | 100.00 | 150.00 | 0.00
 
 SHAPE #2
-Property    | Value
-------------|--------
-Name        | Column-B2
-Type        | circle
-Point Count | 1
-Area        | 314.16
-Radius      | 10.00
-Centroid X  | 200.00
-Centroid Y  | 200.00
+Property          | Value
+------------------|--------
+Name              | Column-B2
+Type              | circle
+Point Count       | 1
+Area (sq units)   | 314.16
+Perimeter (units) | 62.83
+Radius            | 10.00
+Centroid X        | 200.00
+Centroid Y        | 200.00
 ...
 ```
+
+**Perimeter Calculation:**
+- **Polygons**: Sum of distances between consecutive vertices (closed loop)
+- **Circles**: 2πr (circumference)
 
 ---
 
@@ -448,10 +488,11 @@ Licensed under the MIT License.
 
 ## Version
 
-Current Version: **3.3** (Simplified Distance-Only Detection)  
+Current Version: **3.4** (Summary Statistics + Perimeter Calculation)  
 Date: May 21, 2026
 
 ### Changelog
+- **v3.4** (2026-05-21): Added Summary sheet with statistics by name, perimeter calculation for all shapes
 - **v3.3** (2026-05-21): Simplified to distance-only check (centroid-to-centroid), removed area comparison
 - **v3.1** (2026-05-21): Added automatic duplicate detection and removal
 - **v3.0** (2026-05-21): Added COLSCAN command for automatic shape detection
