@@ -310,46 +310,42 @@
   nearest_text
 )
 
-;; Helper function: Check if two shapes are duplicates
-(defun is-duplicate-shape (shape1 shape2 / centroid1 centroid2 area1 area2 tolerance)
-  (setq tolerance 0.01)  ;; Tolerance for comparison
-  
+;; Helper function: Check if two shapes are too close
+(defun is-duplicate-shape (shape1 shape2 tolerance / centroid1 centroid2 dist)
   (setq centroid1 (cdr (assoc "centroid" shape1)))
   (setq centroid2 (cdr (assoc "centroid" shape2)))
-  (setq area1 (cdr (assoc "area" shape1)))
-  (setq area2 (cdr (assoc "area" shape2)))
   
-  ;; Check if centroids are close enough
+  ;; Check if centroids exist
   (if (and centroid1 centroid2)
     (progn
+      ;; Calculate 2D distance between centroids
       (setq dist (sqrt (+ 
         (* (- (car centroid1) (car centroid2)) (- (car centroid1) (car centroid2)))
         (* (- (cadr centroid1) (cadr centroid2)) (- (cadr centroid1) (cadr centroid2)))
       )))
       
-      ;; Check if distance is within tolerance AND areas are similar
-      (and (< dist tolerance)
-           (< (abs (- area1 area2)) tolerance))
+      ;; Return true if distance is less than tolerance
+      (< dist tolerance)
     )
     nil
   )
 )
 
-;; Helper function: Remove duplicate shapes from list
-(defun remove-duplicate-shapes (shapes / unique_shapes shape is_dup unique_shape)
+;; Helper function: Remove shapes that are too close
+(defun remove-duplicate-shapes (shapes tolerance / unique_shapes shape is_dup unique_shape)
   (setq unique_shapes '())
   
   (foreach shape shapes
     (setq is_dup nil)
     
-    ;; Check if this shape is duplicate of any shape in unique_shapes
+    ;; Check if this shape is too close to any shape in unique_shapes
     (foreach unique_shape unique_shapes
-      (if (is-duplicate-shape shape unique_shape)
+      (if (is-duplicate-shape shape unique_shape tolerance)
         (setq is_dup T)
       )
     )
     
-    ;; If not duplicate, add to unique list
+    ;; If not too close, add to unique list
     (if (not is_dup)
       (setq unique_shapes (append unique_shapes (list shape)))
     )
@@ -359,8 +355,18 @@
 )
 
 ;; Command: Auto-scan area for shapes
-(defun C:COLSCAN (/ p1 p2 ss i ent shape_data all_shapes result_file python_path python_exe original_count duplicate_count confirm)
+(defun C:COLSCAN (/ p1 p2 ss i ent shape_data all_shapes result_file python_path python_exe original_count duplicate_count confirm tolerance_input tolerance)
   (princ "\n=== CAD Column Auto-Scanner ===")
+  
+  ;; Ask for tolerance distance
+  (setq tolerance_input (getreal "\nEnter minimum distance between shapes (default 1.0mm): "))
+  (if (null tolerance_input)
+    (setq tolerance 1.0)
+    (setq tolerance tolerance_input)
+  )
+  
+  (princ (strcat "\n✓ Tolerance: " (rtos tolerance 2 2) "mm (measuring from centroid to centroid)"))
+  (princ "\n✓ Any shapes closer than this will be removed (keeping the first one)")
   (princ "\nSelect area to scan for shapes...")
   
   ;; Get selection window from user
@@ -407,15 +413,15 @@
                 (setq i (1+ i))
               )
               
-              ;; Remove duplicate shapes
+              ;; Remove shapes that are too close
               (setq original_count (length all_shapes))
-              (setq all_shapes (remove-duplicate-shapes all_shapes))
+              (setq all_shapes (remove-duplicate-shapes all_shapes tolerance))
               (setq duplicate_count (- original_count (length all_shapes)))
               
               ;; Display summary
               (princ (strcat "\n\n✓ Total shapes detected: " (itoa original_count)))
               (if (> duplicate_count 0)
-                (princ (strcat "\n⚠ Removed " (itoa duplicate_count) " duplicate shape(s)"))
+                (princ (strcat "\n⚠ Removed " (itoa duplicate_count) " shape(s) within " (rtos tolerance 2 2) "mm from each other"))
               )
               (princ (strcat "\n✓ Unique shapes: " (itoa (length all_shapes))))
               

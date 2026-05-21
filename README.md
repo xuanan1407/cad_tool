@@ -37,11 +37,15 @@ The Python script that processes exported JSON data:
 
 ### Auto-Scan Mode (NEW!)
 - **Select rectangular area** with 2 clicks
+- **Customizable tolerance**:
+  - Set minimum centroid-to-centroid distance (default 1.0mm)
+  - Any shapes closer than tolerance will be removed
+  - Keeps first shape, removes subsequent shapes in cluster
+  - **Simple distance-only check** - no area or size comparison
 - **Automatic shape detection**:
   - Closed LWPOLYLINE (lightweight polylines)
   - Closed POLYLINE (heavy polylines)
   - CIRCLE (with radius information)
-- **Smart duplicate removal** - Automatically removes overlapping shapes with same position and area
 - **Batch processing** - All shapes detected and saved at once
 - **Smart labeling** - Finds nearest text for each shape automatically
 
@@ -124,31 +128,42 @@ See [PLUGIN_INSTALLATION.md](PLUGIN_INSTALLATION.md) for detailed instructions.
    COLSCAN
    ```
 
-2. Select the first corner of scan area:
+2. Enter minimum distance tolerance:
+   ```
+   Enter minimum distance between shapes (default 1.0mm): [Type value or press Enter]
+   ```
+   - Default: 1.0mm
+   - Any shapes with centroids closer than this distance will be considered too close
+   - The first shape is kept, subsequent shapes within tolerance are removed
+   - Press Enter to use default value
+
+3. Select the first corner of scan area:
    ```
    Select first corner:
    ```
 
-3. Select the opposite corner to define rectangular area:
+4. Select the opposite corner to define rectangular area:
    ```
    Select opposite corner:
    ```
 
-4. Tool will automatically:
+5. Tool will automatically:
    - Detect all closed shapes (polylines, circles) in the area
-   - **Remove duplicate shapes** (same position and area)
-   - Calculate area and centroid for each
+   - **Calculate centroid-to-centroid distance** for all shape pairs
+   - **Remove shapes that are too close** (within your specified tolerance)
+   - Keep the first shape in each cluster, remove subsequent ones
+   - Calculate area and centroid for each unique shape
    - Find nearest text label for each
-   - Display summary in command line
-
-5. Confirm export:
+6. Confirm export:
    ```
    Export all shapes to JSON? [Yes/No] <Yes>:
    ```
    - Type `Y` or press Enter to export
    - Excel file will be created automatically
 
-6. **Repeat for multiple areas** - COLSCAN supports cumulative scanning:
+7  - Excel file will be created automatically
+
+8. **Repeat for multiple areas** - COLSCAN supports cumulative scanning:
    - Run COLSCAN again to scan another area
    - New shapes will be appended to existing data
    - All shapes from previous scans are preserved
@@ -312,8 +327,11 @@ Centroid Y  | 200.00
 ### Shape Detection (Auto-Scan Mode)
 - Uses AutoCAD selection set (`ssget`) with window selection
 - Filters for closed shapes only:
-  - LWPOLYLINE with `Closed = True`
-  - POLYLINE with closed flag bit set
+  - Configurable duplicate detection**:
+  - **Tolerance**: User-defined minimum distance (default 2.0mm)
+  - **Loose mode** (default): Remove shapes within tolerance distance
+  - **Strict mode**: Remove shapes within tolerance distance AND similar area
+  - Keeps first shape, removes subsequent shapes within tolerance
   - CIRCLE (always closed)
 - **Duplicate detection**: Compares centroid position and area with 0.01 tolerance
 - Automatically removes overlapping duplicates before saving
@@ -373,17 +391,29 @@ Searches for Python in:
 - Manually run: `python python_processor.py "path\to\column_data.json"`
 - Check `python_processor.py` is in same folder or add to PATH
 - Install dependencies: `pip install pandas openpyxl`
-
-### Shapes detected but no name/label
-- Add TEXT or MTEXT entities near shape centroids
-- Tool finds nearest text automatically
-- If no text found, shape name will be "Unknown"
-
-### Tool detects many duplicate shapes
+shapes too close together
 **Cause:**
 - Multiple layers overlapping
-- Copy/paste at same location
+- Copy/paste at nearby locations
 - Imported DWGs from multiple sources
+- Shapes naturally spaced closer than tolerance
+
+**Solution:**
+- ✅ Tool prompts for tolerance distance at start
+- ✅ Default 1.0mm - adjust based on your drawing scale
+- ✅ Only centroid-to-centroid distance is checked (no area/size comparison)
+- Check output: "⚠ Removed X shape(s) within Y.Ymm from each other"
+- First shape in each cluster is kept, rest are removed
+
+**How it works:**
+- Distance measured from **centroid to centroid** (not edge to edge)
+- If 2 shapes have centroids < tolerance apart → second shape removed
+- Different sizes, different areas → doesn't matter, only distance counts
+
+**Examples:**
+- Small scale drawings (details): Use 0.5mm - 1.0mm tolerance
+- Medium scale (floor plans): Use 1.0mm - 5.0mm tolerance  
+- Large scale (site plans): Use 10.0mm - 50.0mm tolerance
 
 **Solution:**
 - ✅ Tool automatically removes duplicates!
@@ -410,17 +440,19 @@ Searches for Python in:
 
 ---
 
-## License
-
+## License2** (Customizable Duplicate Detection
+2** (2026-05-21): Added customizable tolerance for duplicate detection
+- **v3.
 Copyright (c) 2026 Tran Xuan An  
 Licensed under the MIT License.
 
 ## Version
 
-Current Version: **3.1** (Auto-Scan with Duplicate Removal)  
+Current Version: **3.3** (Simplified Distance-Only Detection)  
 Date: May 21, 2026
 
 ### Changelog
+- **v3.3** (2026-05-21): Simplified to distance-only check (centroid-to-centroid), removed area comparison
 - **v3.1** (2026-05-21): Added automatic duplicate detection and removal
 - **v3.0** (2026-05-21): Added COLSCAN command for automatic shape detection
 - **v2.0** (2026-05-18): Multi-polygon support with JSON array format
