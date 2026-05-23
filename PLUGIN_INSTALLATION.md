@@ -1,5 +1,14 @@
 # AutoCAD Plugin Installation Guide
-## CAD Column Inspector Pro - Hybrid Version
+## CAD Column Inspector Pro
+
+---
+
+## ⚠️ CURRENT STATUS
+
+**Python Backend:** ✅ Complete and functional  
+**AutoLISP Plugin:** ❌ Incomplete - missing 3 helper files
+
+The plugin will NOT work in its current state. See [STATUS.md](STATUS.md) for details.
 
 ---
 
@@ -37,13 +46,26 @@ pip install pandas openpyxl
 
 ### Step 2: Copy Plugin Files
 
-Copy these files to your working directory:
+**⚠️ Current Status:** The AutoLISP plugin requires additional files to function properly.
+
+**Available files:**
 ```
 your_folder/
-├── ColumnInspector.lsp      # AutoLISP plugin
-├── python_processor.py        # Python processor
+├── ColumnInspector.lsp           # Main loader (incomplete - loads missing modules)
+├── ColumnInspector_Commands.lsp  # Command definitions
+├── main.py                       # Python processor (entry point)
+├── data_loader.py                # JSON loader
+├── shape_calculator.py           # Calculations
+├── excel_exporter.py             # Excel export
 └── (your drawing files)
 ```
+
+**Missing files (required):**
+- `ColumnInspector_Helpers.lsp` - Calculation & utility functions
+- `ColumnInspector_Detection.lsp` - Shape detection & analysis
+- `ColumnInspector_FileIO.lsp` - JSON export functionality
+
+Without these files, the plugin will show errors when loaded.
 
 ### Step 3: Load Plugin in AutoCAD
 
@@ -74,6 +96,26 @@ your_folder/
 ---
 
 ## 🎮 How to Use
+
+### ⚠️ Plugin is Currently Incomplete
+
+The AutoLISP commands are defined but the required helper functions are missing. Commands will fail with "no function definition" errors.
+
+**What works:**
+- ✅ Python processor (run manually: `python main.py column_data.json`)
+- ✅ Excel export
+- ✅ JSON structure
+
+**What doesn't work:**
+- ❌ COLINSPECT command (missing calculate-polygon-area, calculate-centroid, etc.)
+- ❌ COLSCAN command (missing analyze-entity, remove-duplicate-shapes, etc.)
+- ❌ COLCLEAR command (works, but no data to clear if other commands don't work)
+
+See [STATUS.md](STATUS.md) for complete list of missing functions and how to complete the plugin.
+
+---
+
+### When Complete - Usage Instructions:
 
 ### 1. Start the Tool
 

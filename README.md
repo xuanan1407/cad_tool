@@ -79,13 +79,26 @@ The Python script that processes exported JSON data:
 
 ```
 cad_tool/
-├── ColumnInspector.lsp      # AutoCAD plugin (main)
-├── python_processor.py       # Python backend processor
-├── column_data.json          # Shape data storage (auto-generated)
-├── requirements.txt          # Python dependencies
-├── README.md                 # This file
-└── PLUGIN_INSTALLATION.md    # Installation guide
+│
+├── AutoLISP Files
+│   ├── ColumnInspector.lsp           # Main loader (loads modules)
+│   └── ColumnInspector_Commands.lsp  # Commands: COLINSPECT, COLSCAN, COLCLEAR
+│   ⚠️  Missing: ColumnInspector_Helpers.lsp, _Detection.lsp, _FileIO.lsp
+│
+├── Python Files (Modular)
+│   ├── main.py                       # Entry point
+│   ├── data_loader.py                # JSON loading
+│   ├── shape_calculator.py           # Calculations
+│   └── excel_exporter.py             # Excel export
+│
+├── Output (Auto-generated)
+│   ├── column_data.json              # Shape data
+│   └── Column_Inspector_*.xlsx       # Excel files
+│
+└── requirements.txt                  # Dependencies
 ```
+
+**⚠️ IMPORTANT:** AutoLISP plugin is incomplete! Needs 3 more files to work.
 
 ## Installation
 
@@ -109,7 +122,19 @@ pip install -r requirements.txt
 
 ### AutoLISP Plugin Setup
 
-1. Copy `ColumnInspector.lsp` to a location accessible by AutoCAD
+**⚠️ Current Status:** Plugin is incomplete and will NOT work yet!
+
+**What you have:**
+- ✅ ColumnInspector.lsp (main loader)
+- ✅ ColumnInspector_Commands.lsp (commands)
+
+**What's missing:**
+- ❌ ColumnInspector_Helpers.lsp (calculations, utilities)
+- ❌ ColumnInspector_Detection.lsp (shape analysis)
+- ❌ ColumnInspector_FileIO.lsp (JSON export)
+
+**When complete:**
+1. Copy ALL AutoLISP files to same folder
 2. In AutoCAD, load the plugin:
    ```lisp
    (load "C:/path/to/ColumnInspector.lsp")
@@ -490,6 +515,10 @@ Licensed under the MIT License.
 
 Current Version: **3.4** (Summary Statistics + Perimeter Calculation)  
 Date: May 21, 2026
+
+**⚠️ Development Status:**  
+- ✅ **Python modules:** Complete and functional
+- ❌ **AutoLISP plugin:** Incomplete - missing 3 helper files
 
 ### Changelog
 - **v3.4** (2026-05-21): Added Summary sheet with statistics by name, perimeter calculation for all shapes
