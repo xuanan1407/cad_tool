@@ -5,32 +5,79 @@
 ;; Load this file in AutoCAD: (load "ColumnInspector.lsp")
 ;; Run command: COLINSPECT
 
-(defun C:COLINSPECT (/ pt_list pt count area centroid result_file python_path python_exe confirm)
+(defun C:COLINSPECT (/ pt_list pt count area centroid result_file python_path python_exe confirm redline_list last_ent ent_data prev_pt)
   (princ "\n=== CAD Column Inspector Pro ===")
   (princ "\nSelect points to create polygon (Press Enter to finish)")
   
   ;; Initialize variables
   (setq pt_list '())
   (setq count 0)
+  (setq redline_list '())  ;; List to store red line entities
   
   ;; Get points from user
-  (while (setq pt (getpoint 
-                    (if (null pt_list)
-                      "\nSelect first point: "
-                      "\nSelect next point (or press Enter to finish): "
-                    )))
+  (while (setq pt (if (null pt_list)
+                    ;; First point - no base point
+                    (getpoint "\nSelect first point: ")
+                    ;; Subsequent points - use last point as base
+                    (getpoint (car (reverse pt_list)) "\nSelect next point (or press Enter to finish): ")
+                  ))
     (setq pt_list (append pt_list (list pt)))
     (setq count (1+ count))
     (princ (strcat "\nPoint " (itoa count) " selected: " (vl-princ-to-string pt)))
+    
+    ;; Draw red line from previous point to current point
+    (if (> count 1)
+      (progn
+        (setq prev_pt (nth (- count 2) pt_list))
+        
+        ;; Draw THICK red polyline
+        (command "_.PLINE" prev_pt "W" "2" "2" pt "")
+        
+        ;; Get the line entity and change to RED
+        (setq last_ent (entlast))
+        (if last_ent
+          (progn
+            (setq ent_data (entget last_ent))
+            
+            ;; Add or change color to RED (1)
+            (if (assoc 62 ent_data)
+              (setq ent_data (subst (cons 62 1) (assoc 62 ent_data) ent_data))
+              (setq ent_data (append ent_data (list (cons 62 1))))
+            )
+            
+            (entmod ent_data)
+            (entupd last_ent)
+            
+            ;; Store entity name for later cleanup
+            (setq redline_list (append redline_list (list last_ent)))
+          )
+        )
+      )
+    )
   )
   
   ;; Check if we have at least 3 points
   (if (< (length pt_list) 3)
     (progn
       (princ "\nError: Need at least 3 points to create a polygon!")
+      
+      ;; Delete red lines
+      (foreach ent redline_list
+        (if (and ent (entget ent))
+          (entdel ent)
+        )
+      )
+      
       (princ)
     )
     (progn
+      ;; Delete red lines before drawing final polygon
+      (foreach ent redline_list
+        (if (and ent (entget ent))
+          (entdel ent)
+        )
+      )
+      
       ;; Draw temporary polygon for preview
       (command "_.PLINE")
       (foreach pt pt_list
