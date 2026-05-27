@@ -37,16 +37,80 @@ class ExcelExporter:
             ws_detail = wb.create_sheet("Shape Details")
             self._create_detail_sheet(ws_detail)
             
+            # Create batch files for shape finding
+            self._create_batch_files()
+            
             # Save workbook
             wb.save(output_file)
             print(f"\n✓ Excel file created with {len(self.polygons)} shape(s): {output_file}")
             print(f"✓ Summary sheet created with statistics by name")
+            print(f"✓ Shape reverse lookup enabled - click '🔍 Find in CAD' buttons in Detail sheet")
             
             return output_file
             
         except Exception as e:
             print(f"✗ Error creating Excel file: {e}")
             return None
+    
+    def _create_batch_files(self):
+        """Create VBScript files for each shape to enable clicking from Excel (hidden console)"""
+        try:
+            # Create scripts subfolder
+            scripts_folder = os.path.join(self.output_folder, "scripts")
+            if not os.path.exists(scripts_folder):
+                os.makedirs(scripts_folder)
+                print(f"✓ Created scripts folder: {scripts_folder}")
+            
+            for polygon in self.polygons:
+                shape_id = polygon.get('id', '')
+                if shape_id:
+                    # Create VBScript file in scripts folder
+                    vbs_file = os.path.join(scripts_folder, f"find_{shape_id}.vbs")
+                    python_script = os.path.abspath(os.path.join(self.output_folder, "find_shape.py"))
+                    
+                    # Find python executable
+                    python_exe = self._find_python()
+                    
+                    with open(vbs_file, 'w') as f:
+                        # VBScript to run Python without showing console window
+                        f.write('Set objShell = CreateObject("WScript.Shell")\n')
+                        f.write(f'objShell.Run "\""{python_exe}\"" \""{python_script}\"" {shape_id}", 0, False\n')
+                    
+                    # Also create a simpler .bat file for manual testing if needed
+                    batch_file = os.path.join(scripts_folder, f"find_{shape_id}.bat")
+                    with open(batch_file, 'w') as f:
+                        f.write('@echo off\n')
+                        f.write(f'cd /d "{self.output_folder}"\n')
+                        f.write(f'python "{python_script}" {shape_id}\n')
+                        # No pause - auto close after execution
+        except Exception as e:
+            print(f"⚠ Warning: Could not create batch files: {e}")
+    
+    def _find_python(self):
+        """Find Python executable path"""
+        # Try common locations
+        python_paths = [
+            'python',
+            'python3',
+            r'C:\Python39\python.exe',
+            r'C:\Python310\python.exe',
+            r'C:\Python311\python.exe',
+            r'C:\Python312\python.exe',
+            r'C:\Program Files\Python39\python.exe',
+            r'C:\Program Files\Python310\python.exe',
+            r'C:\Program Files\Python311\python.exe',
+        ]
+        
+        # Check if python is in PATH
+        for py in python_paths:
+            try:
+                result = os.system(f'where {py} >nul 2>&1')
+                if result == 0:
+                    return py
+            except:
+                pass
+        
+        return 'python'  # Fallback to default
     
     def _create_summary_sheet(self, ws):
         """Create summary statistics sheet"""
@@ -65,7 +129,7 @@ class ExcelExporter:
         )
         
         # Title
-        ws.merge_cells('A1:F1')
+        ws.merge_cells('A1:G1')
         cell = ws.cell(row=1, column=1)
         cell.value = "SHAPE STATISTICS SUMMARY"
         cell.font = title_font
@@ -74,7 +138,7 @@ class ExcelExporter:
         ws.row_dimensions[1].height = 30
         
         # Headers
-        headers = ["Name", "Count", "Total Area", "Avg Area", "Total Perimeter", "Avg Perimeter"]
+        headers = ["Name", "Count", "Total Area", "Avg Area", "Total Perimeter", "Avg Perimeter", "Sample ID"]
         for col, header in enumerate(headers, start=1):
             cell = ws.cell(row=3, column=col)
             cell.value = header
@@ -89,6 +153,9 @@ class ExcelExporter:
             stat = stats[name]
             avg_area = stat['total_area'] / stat['count']
             avg_perimeter = stat['total_perimeter'] / stat['count']
+            
+            # Get first shape ID with this name
+            sample_id = next((p.get('id', 'N/A') for p in self.polygons if p.get('name') == name), 'N/A')
             
             ws.cell(row=row, column=1).value = name
             ws.cell(row=row, column=1).border = border
@@ -113,6 +180,11 @@ class ExcelExporter:
             ws.cell(row=row, column=6).alignment = Alignment(horizontal="right")
             ws.cell(row=row, column=6).border = border
             
+            ws.cell(row=row, column=7).value = sample_id
+            ws.cell(row=row, column=7).alignment = Alignment(horizontal="center")
+            ws.cell(row=row, column=7).border = border
+            ws.cell(row=row, column=7).font = Font(color="0000FF", underline="single")
+            
             row += 1
         
         # Totals row
@@ -125,6 +197,7 @@ class ExcelExporter:
         ws.column_dimensions['D'].width = 15
         ws.column_dimensions['E'].width = 18
         ws.column_dimensions['F'].width = 18
+        ws.column_dimensions['G'].width = 20
     
     def _add_totals_row(self, ws, row, stats, border):
         """Add totals row to summary sheet"""
@@ -167,6 +240,12 @@ class ExcelExporter:
         ws.cell(row=row, column=6).fill = PatternFill(start_color="E7E6E6", end_color="E7E6E6", fill_type="solid")
         ws.cell(row=row, column=6).alignment = Alignment(horizontal="right")
         ws.cell(row=row, column=6).border = border
+        
+        ws.cell(row=row, column=7).value = "-"
+        ws.cell(row=row, column=7).font = Font(bold=True)
+        ws.cell(row=row, column=7).fill = PatternFill(start_color="E7E6E6", end_color="E7E6E6", fill_type="solid")
+        ws.cell(row=row, column=7).alignment = Alignment(horizontal="center")
+        ws.cell(row=row, column=7).border = border
     
     def _create_detail_sheet(self, ws):
         """Create detailed shape data sheet"""
@@ -206,11 +285,41 @@ class ExcelExporter:
         # Adjust column widths
         ws.column_dimensions['A'].width = 20
         ws.column_dimensions['B'].width = 15
-        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['C'].width = 18
         ws.column_dimensions['D'].width = 15
     
     def _write_shape_properties(self, ws, row, polygon, perimeter):
         """Write shape properties to detail sheet"""
+        # Shape ID (first row - most important)
+        ws.cell(row=row, column=1).value = "Shape ID"
+        ws.cell(row=row, column=2).value = polygon.get('id', 'N/A')
+        ws.cell(row=row, column=2).font = Font(bold=True, color="FF0000", size=12)
+        
+        # Add "Find in CAD" button/link in column 3
+        shape_id = polygon.get('id', '')
+        if shape_id:
+            # Use VBScript file in scripts subfolder for hidden execution (no console window)
+            scripts_folder = os.path.join(self.output_folder, "scripts")
+            vbs_file = os.path.join(scripts_folder, f"find_{shape_id}.vbs")
+            
+            cell = ws.cell(row=row, column=3)
+            cell.value = "🔍 Find in CAD"
+            cell.font = Font(bold=True, color="FFFFFF", size=10, underline="single")
+            cell.fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            
+            # Add hyperlink to VBScript file (runs hidden)
+            cell.hyperlink = vbs_file
+            
+            # Add comment with instructions
+            from openpyxl.comments import Comment
+            comment = Comment(
+                f"Click to find this shape in AutoCAD\nShape ID: {shape_id}\n\nInstructions:\n1. Make sure AutoCAD is open with the drawing\n2. Click this button\n3. Shape will be highlighted in yellow",
+                "CAD Inspector"
+            )
+            cell.comment = comment
+        row += 1
+        
         ws.cell(row=row, column=1).value = "Name"
         ws.cell(row=row, column=2).value = polygon.get('name', 'Unknown')
         ws.cell(row=row, column=2).font = Font(bold=True, color="0000FF")

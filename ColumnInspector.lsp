@@ -854,7 +854,7 @@
 )
 
 ;; Helper function: Simple JSON parser for our shape format
-(defun parse-json-shapes (content / shapes current_shape lines line in_shape in_points pt_list id_val name_val type_val area_val centroid_val)
+(defun parse-json-shapes (content / shapes current_shape lines line in_shape in_points pt_list id_val name_val type_val area_val centroid_val radius_val)
   (setq shapes '())
   (setq current_shape nil)
   (setq in_shape nil)
@@ -867,6 +867,7 @@
   (setq type_val nil)
   (setq area_val nil)
   (setq centroid_val nil)
+  (setq radius_val nil)
   
   ;; Split into lines
   (setq lines (str-split content "\n"))
@@ -884,6 +885,7 @@
        (setq type_val nil)
        (setq area_val nil)
        (setq centroid_val nil)
+       (setq radius_val nil)
        (setq current_shape '())
       )
       
@@ -901,6 +903,10 @@
              (cons "centroid" (if centroid_val centroid_val '(0.0 0.0)))
              (cons "points" pt_list)
            ))
+           ;; Add radius if it exists (for circles)
+           (if radius_val
+             (setq current_shape (append current_shape (list (cons "radius" radius_val))))
+           )
            (setq shapes (append shapes (list current_shape)))
          )
        )
@@ -934,6 +940,11 @@
          ;; Parse "centroid"
          ((vl-string-search "\"centroid\":" line)
           (setq centroid_val (parse-json-array-inline line))
+         )
+         
+         ;; Parse "radius" (for circles)
+         ((vl-string-search "\"radius\":" line)
+          (setq radius_val (extract-number-value line))
          )
          
          ;; Start of points array
@@ -1112,16 +1123,19 @@
      (setq radius (cdr (assoc "radius" shape)))
      (if (and radius centroid)
        (progn
+         ;; Ensure lineweight display is on
+         (setvar "LWDISPLAY" 1)
+         
          ;; Draw yellow circle slightly larger
          (command "_.CIRCLE" 
                   (list (car centroid) (cadr centroid) 0.0)
                   (* radius 1.05))
          
-         ;; Set to yellow and thicker
+         ;; Set to yellow and thicker lineweight
          (setq highlight_ent (entlast))
          (if highlight_ent
            (progn
-             (command "_.CHPROP" highlight_ent "" "_C" "2" "_LW" "0.5" "")
+             (command "_.CHPROP" highlight_ent "" "_C" "2" "_LW" "100" "")
              (princ "\n✓ Yellow highlight drawn around circle")
              
              ;; Zoom to shape
@@ -1144,6 +1158,9 @@
     ((or (= shape_type "polygon") (= shape_type "lwpolyline") (= shape_type "polyline"))
      (if points
        (progn
+         ;; Ensure lineweight display is on
+         (setvar "LWDISPLAY" 1)
+         
          ;; Calculate offset points (slightly outward from centroid)
          (setq offset_points '())
          (foreach pt points
@@ -1164,11 +1181,11 @@
          )
          (command "_C")  ;; Close
          
-         ;; Set to yellow and thicker
+         ;; Set to yellow and thicker lineweight
          (setq highlight_ent (entlast))
          (if highlight_ent
            (progn
-             (command "_.CHPROP" highlight_ent "" "_C" "2" "_LW" "0.5" "")
+             (command "_.CHPROP" highlight_ent "" "_C" "2" "_LW" "100" "")
              (princ "\n✓ Yellow highlight drawn around polygon")
              
              ;; Zoom to shape
@@ -1195,8 +1212,16 @@
 (defun C:COLFINDPOLY (/ shape_id result_file shape)
   (princ "\n=== Find Shape by ID ===")
   
-  ;; Get shape ID from user
-  (setq shape_id (getstring "\nEnter Shape ID (e.g., COL_A1_001): "))
+  ;; Check if shape ID was set by script (for automation)
+  (if (and (boundp '*COLFIND_SHAPEID*) *COLFIND_SHAPEID*)
+    (progn
+      (setq shape_id *COLFIND_SHAPEID*)
+      (princ (strcat "\nSearching for: " shape_id))
+      (setq *COLFIND_SHAPEID* nil)  ; Clear after use
+    )
+    ;; Otherwise, get shape ID from user (interactive mode)
+    (setq shape_id (getstring "\nEnter Shape ID (e.g., COL_A1_001): "))
+  )
   
   (if (and shape_id (> (strlen shape_id) 0))
     (progn
