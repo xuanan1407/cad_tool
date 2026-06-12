@@ -61,30 +61,74 @@ class ExcelExporter:
                 os.makedirs(scripts_folder)
                 print(f"✓ Created scripts folder: {scripts_folder}")
             
+            # Find FindShape executable or Python script
+            finder_exe, is_executable = self._find_shape_finder()
+            
             for polygon in self.polygons:
                 shape_id = polygon.get('id', '')
                 if shape_id:
                     # Create VBScript file in scripts folder
                     vbs_file = os.path.join(scripts_folder, f"find_{shape_id}.vbs")
-                    python_script = os.path.abspath(os.path.join(self.output_folder, "find_shape.py"))
-                    
-                    # Find python executable
-                    python_exe = self._find_python()
                     
                     with open(vbs_file, 'w') as f:
-                        # VBScript to run Python without showing console window
+                        # VBScript to run without showing console window
                         f.write('Set objShell = CreateObject("WScript.Shell")\n')
-                        f.write(f'objShell.Run "\""{python_exe}\"" \""{python_script}\"" {shape_id}", 0, False\n')
+                        if is_executable:
+                            # Direct executable call
+                            f.write(f'objShell.Run "\""{finder_exe}\"" {shape_id}", 0, False\n')
+                        else:
+                            # Python script call
+                            python_exe = self._find_python()
+                            f.write(f'objShell.Run "\""{python_exe}\"" \""{finder_exe}\"" {shape_id}", 0, False\n')
                     
                     # Also create a simpler .bat file for manual testing if needed
                     batch_file = os.path.join(scripts_folder, f"find_{shape_id}.bat")
                     with open(batch_file, 'w') as f:
                         f.write('@echo off\n')
                         f.write(f'cd /d "{self.output_folder}"\n')
-                        f.write(f'python "{python_script}" {shape_id}\n')
+                        if is_executable:
+                            f.write(f'"{finder_exe}" {shape_id}\n')
+                        else:
+                            f.write(f'python "{finder_exe}" {shape_id}\n')
                         # No pause - auto close after execution
         except Exception as e:
             print(f"⚠ Warning: Could not create batch files: {e}")
+    
+    def _find_shape_finder(self):
+        """Find FindShape.exe or find_shape.py
+        Returns: (path, is_executable)
+        """
+        # Priority 1: FindShape.exe in same folder as output
+        exe_path = os.path.abspath(os.path.join(self.output_folder, "FindShape.exe"))
+        if os.path.exists(exe_path):
+            print(f"✓ Using FindShape.exe (compiled, no Python required)")
+            return (exe_path, True)
+        
+        # Priority 2: FindShape.exe in current directory
+        exe_path = os.path.abspath("FindShape.exe")
+        if os.path.exists(exe_path):
+            print(f"✓ Using FindShape.exe from current directory")
+            return (exe_path, True)
+        
+        # Priority 3: FindShape.exe in PATH
+        try:
+            result = os.system('where FindShape.exe >nul 2>&1')
+            if result == 0:
+                print(f"✓ Using FindShape.exe from PATH")
+                return ("FindShape.exe", True)
+        except:
+            pass
+        
+        # Fallback: find_shape.py
+        py_path = os.path.abspath(os.path.join(self.output_folder, "find_shape.py"))
+        if os.path.exists(py_path):
+            print(f"⚠ Using find_shape.py (requires Python)")
+            return (py_path, False)
+        
+        # Last resort: try current directory
+        py_path = os.path.abspath("find_shape.py")
+        print(f"⚠ Using find_shape.py from current directory")
+        return (py_path, False)
     
     def _find_python(self):
         """Find Python executable path"""

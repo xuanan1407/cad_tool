@@ -1,7 +1,7 @@
 __pycache__
-cad_tool.log
 build/
 scripts/
+release/
 dist/
 *.json
 *.xlsx

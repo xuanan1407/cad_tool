@@ -6,8 +6,9 @@
 CAD Column Inspector Pro is a powerful AutoLISP-based tool for analyzing shapes in AutoCAD. It offers two modes:
 1. **Manual Mode** - Click points to define custom polygons
 2. **Auto-Scan Mode** - Select an area and automatically detect all shapes
+3. **🆕 Reverse Lookup** - Find and highlight shapes in CAD from Excel! Click a button in Excel → Shape highlights in yellow in AutoCAD!
 
-The tool automatically calculates area, centroid, and exports data to Excel via Python.
+The tool automatically calculates area, centroid, exports data to Excel, and **enables reverse lookup from Excel back to CAD**.
 
 ## System Architecture
 
@@ -36,7 +37,16 @@ The Python script that processes exported JSON data:
 
 ## Key Features
 
-### Auto-Scan Mode (NEW!)
+### 🆕 Reverse Lookup (v4.0)
+- **Find shapes in CAD from Excel!** 🎯
+- Each shape gets unique ID: `COL_A1_001`, `COL_B2_001`, etc.
+- **Click "🔍 Find in CAD" button in Excel** → Shape highlights in yellow in AutoCAD
+- AutoLISP command `COLFINDPOLY` for manual lookup
+- Python script `find_shape.py` for scripting
+- **Workflow**: Excel button → Batch file → Python → AutoLISP → Yellow highlight!
+- See [REVERSE_LOOKUP_GUIDE.md](REVERSE_LOOKUP_GUIDE.md) for detailed instructions
+
+### Auto-Scan Mode
 - **Select rectangular area** with 2 clicks
 - **Customizable tolerance**:
   - Set minimum centroid-to-centroid distance (default 1.0mm)
@@ -81,24 +91,27 @@ The Python script that processes exported JSON data:
 cad_tool/
 │
 ├── AutoLISP Files
-│   ├── ColumnInspector.lsp           # Main loader (loads modules)
-│   └── ColumnInspector_Commands.lsp  # Commands: COLINSPECT, COLSCAN, COLCLEAR
-│   ⚠️  Missing: ColumnInspector_Helpers.lsp, _Detection.lsp, _FileIO.lsp
+│   └── ColumnInspector.lsp           # Complete plugin with all features
 │
 ├── Python Files (Modular)
 │   ├── main.py                       # Entry point
 │   ├── data_loader.py                # JSON loading
 │   ├── shape_calculator.py           # Calculations
-│   └── excel_exporter.py             # Excel export
+│   ├── excel_exporter.py             # Excel export (with reverse lookup)
+│   └── find_shape.py                 # 🆕 Shape finder for reverse lookup
 │
 ├── Output (Auto-generated)
-│   ├── column_data.json              # Shape data
-│   └── Column_Inspector_*.xlsx       # Excel files
+│   ├── column_data.json              # Shape data (with IDs)
+│   ├── Column_Inspector_*.xlsx       # Excel files (with Find buttons)
+│   └── find_*.bat                    # 🆕 Batch files for each shape
+│
+├── Documentation
+│   ├── README.md                     # Main documentation
+│   ├── REVERSE_LOOKUP_GUIDE.md       # 🆕 Reverse lookup instructions
+│   └── PLUGIN_INSTALLATION.md        # Installation guide
 │
 └── requirements.txt                  # Dependencies
 ```
-
-**⚠️ IMPORTANT:** AutoLISP plugin is incomplete! Needs 3 more files to work.
 
 ## Installation
 
@@ -254,6 +267,7 @@ Confirms deletion and removes all saved data from JSON file.
 |---------|-------------|
 | `COLSCAN` | **Auto-scan area** - Select region and detect all shapes automatically |
 | `COLINSPECT` | **Manual mode** - Click points to create custom polygon |
+| `COLFINDPOLY` | **🆕 Find shape** - Highlight a shape in CAD by its ID (e.g., COL_A1_001) |
 | `COLCLEAR` | Clear all saved shapes and start fresh |
 
 ---
@@ -266,6 +280,7 @@ The tool exports shape data in JSON array format:
 ```json
 [
   {
+    "id": "Column_A1_001",
     "type": "lwpolyline",
     "name": "Column-A1",
     "point_count": 4,
@@ -287,6 +302,7 @@ The tool exports shape data in JSON array format:
 ```json
 [
   {
+    "id": "Column_B2_001",
     "type": "circle",
     "name": "Column-B2",
     "point_count": 1,
@@ -490,7 +506,7 @@ shapes too close together
 
 ## Example Workflow
 
-### Scenario: Extract all column data from floor plan
+### Scenario 1: Extract all column data from floor plan
 
 1. Open your AutoCAD drawing with columns
 2. Load the plugin: `(load "ColumnInspector.lsp")`
@@ -505,6 +521,31 @@ shapes too close together
 
 ---
 
+### Scenario 2: 🆕 Find specific shape from Excel (Reverse Lookup)
+
+**Problem**: You have 50 columns in Excel, need to find "Column A-15" in CAD.
+
+**Solution with reverse lookup:**
+
+1. Open the generated Excel file
+2. Go to "Shape Details" sheet
+3. Scroll to "SHAPE #15" (Column A-15)
+4. See Shape ID: `Column_A_15_001`
+5. **Click "🔍 Find in CAD" button** in column C
+6. AutoCAD window activates
+7. **Yellow highlight appears around Column A-15!**
+8. Drawing automatically zooms to the shape
+
+**Time saved:** 10 minutes of manual searching → **5 seconds!** ⚡
+
+**Alternative methods:**
+- In AutoCAD: Type `COLFINDPOLY` → Enter `Column_A_15_001`
+- From command line: `python find_shape.py Column_A_15_001`
+
+See [REVERSE_LOOKUP_GUIDE.md](REVERSE_LOOKUP_GUIDE.md) for more examples.
+
+---
+
 ## License2** (Customizable Duplicate Detection
 2** (2026-05-21): Added customizable tolerance for duplicate detection
 - **v3.
@@ -513,14 +554,16 @@ Licensed under the MIT License.
 
 ## Version
 
-Current Version: **3.4** (Summary Statistics + Perimeter Calculation)  
-Date: May 21, 2026
+Current Version: **4.0** (Reverse Lookup - Excel to CAD)  
+Date: May 27, 2026
 
-**⚠️ Development Status:**  
+**✅ Development Status:**  
 - ✅ **Python modules:** Complete and functional
-- ❌ **AutoLISP plugin:** Incomplete - missing 3 helper files
+- ✅ **AutoLISP plugin:** Complete with reverse lookup feature
+- ✅ **Reverse lookup:** Excel buttons → CAD highlighting
 
 ### Changelog
+- **v4.0** (2026-05-27): 🆕 **Reverse Lookup Feature** - Find shapes in CAD from Excel! Added Shape IDs, COLFINDPOLY command, Excel buttons, and batch file integration
 - **v3.4** (2026-05-21): Added Summary sheet with statistics by name, perimeter calculation for all shapes
 - **v3.3** (2026-05-21): Simplified to distance-only check (centroid-to-centroid), removed area comparison
 - **v3.1** (2026-05-21): Added automatic duplicate detection and removal
