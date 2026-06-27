@@ -5,7 +5,7 @@
 ;; Load this file in AutoCAD: (load "ColumnInspector.lsp")
 ;; Run command: COLINSPECT
 
-(defun C:COLINSPECT (/ pt_list pt count area centroid result_file python_path python_exe confirm redline_list last_ent ent_data prev_pt)
+(defun C:COLINSPECT (/ pt_list pt count area centroid result_file python_path python_exe confirm redline_list last_ent ent_data prev_pt nearest_text current_shape history_shapes global_shapes error_count)
   (princ "\n=== CAD Column Inspector Pro ===")
   (princ "\nSelect points to create polygon (Press Enter to finish)")
   
@@ -67,7 +67,6 @@
           (entdel ent)
         )
       )
-      
       (princ)
     )
     (progn
@@ -91,24 +90,46 @@
       
       ;; Find nearest text to centroid
       (setq nearest_text (find-nearest-text centroid))
+      (if (null nearest_text) (setq nearest_text "[No text found]"))
+      
+      ;; ==========================================================
+      ;; NEW LOGIC: LOAD HISTORY & CROSS-CHECK AREA CONSISTENCY
+      ;; ==========================================================
+      (setq result_file (strcat (getvar "DWGPREFIX") "column_data.json"))
+      (setq history_shapes '())
+      
+      ;; 1. Load historical data if file exists
+      (if (findfile result_file)
+        (setq history_shapes (load-shapes-from-json result_file))
+      )
+      
+      ;; 2. Format the current inspected shape into standard list structure
+      (setq current_shape (list (cons "name" nearest_text) (cons "area" area)))
+      
+      ;; 3. Combine history data with the current inspected shape
+      (setq global_shapes (append history_shapes (list current_shape)))
+      
+      ;; 4. Run consistency check on the combined global data
+      (setq error_count (check-area-consistency global_shapes))
+      ;; ==========================================================
       
       ;; Display info
       (princ (strcat "\n\nPolygon created with " (itoa count) " points"))
-      (if nearest_text
-        (princ (strcat "\nName: " nearest_text))
-        (princ "\nName: [No text found]")
-      )
+      (princ (strcat "\nName: " nearest_text))
       (princ (strcat "\nArea: " (rtos area 2 2) " sq units"))
       (princ (strcat "\nCentroid: " (vl-princ-to-string centroid)))
       
       ;; Ask user to confirm
       (initget "Yes No")
-      (setq confirm (getkword "\nExport this polygon data? [Yes/No] <Yes>: "))
+      ;; Smart prompt based on error status
+      (if (= error_count 0)
+        (setq confirm (getkword "\nExport this polygon data? [Yes/No] <Yes>: "))
+        (setq confirm (getkword "\n⚠ WARNING: Data contains geometric inconsistencies! Force export and append to JSON? [Yes/No] <No>: "))
+      )
       
-      (if (or (null confirm) (= confirm "Yes"))
+      (if (or (and (null confirm) (= error_count 0)) (= confirm "Yes"))
         (progn
-          ;; Save data to JSON file
-          (setq result_file (strcat (getvar "DWGPREFIX") "column_data.json"))
+          ;; Save data to JSON file (Passing only the current newly picked data)
           (append-polygon-data pt_list area centroid nearest_text result_file)
           
           ;; Delete the temporary polyline after saving
@@ -420,6 +441,83 @@
   unique_shapes
 )
 
+;; Function: Check for area inconsistencies within the same shape name
+(defun check-area-consistency (shapes / checklist errors item name area existing_area)
+  (setq checklist '())
+  (setq errors 0)
+  (princ "\n--- CHECKING SHAPE AREA CONSISTENCY ---")
+  
+  (foreach item shapes
+    (setq name (cdr (assoc "name" item)))
+    (setq area (cdr (assoc "area" item)))
+    
+    ;; Check if this shape name has been scanned before
+    (setq existing_area (cdr (assoc name checklist)))
+    
+    (if existing_area
+      ;; If name exists, check if area matches (allowing a minor tolerance of 0.1)
+      (if (> (abs (- area existing_area)) 0.1) 
+        (progn
+          (princ (strcat "\n⚠ WARNING: Inconsistent area detected for group [" name "]! (" 
+                         (rtos existing_area 2 2) " vs " (rtos area 2 2) ")"))
+          (setq errors (1+ errors))
+        )
+      )
+      ;; If it's a new name, store its area as the baseline reference
+      (setq checklist (append checklist (list (cons name area))))
+    )
+  )
+  
+  (if (> errors 0)
+    (princ (strcat "\n\n❌ ERROR: Found " (itoa errors) " geometric inconsistency/inconsistencies! Please verify the drawing.\n"))
+    (princ "\n✓ Success: All shapes with the same name have consistent areas.\n")
+  )
+  errors ;; Returns total error count
+)
+
+;; Helper: Load shapes from your specific JSON structure back into a LISP list
+(defun load-shapes-from-json (file_path / f_in line shapes current_name current_area pos_colon raw_val)
+  (setq shapes '())
+  (setq f_in (open file_path "r"))
+  (if f_in
+    (progn
+      (while (setq line (read-line f_in))
+        (setq line (vl-string-trim " \t," line))
+        
+        ;; Extract "name" value
+        (if (vl-string-search "\"name\":" line)
+          (progn
+            (setq pos_colon (vl-string-search ":" line))
+            ;; Trim brackets, quotes, and commas to get clean string name
+            (setq current_name (vl-string-trim " \"\t," (substr line (+ pos_colon 2))))
+          )
+        )
+        
+        ;; Extract "area" value
+        (if (vl-string-search "\"area\":" line)
+          (progn
+            (setq pos_colon (vl-string-search ":" line))
+            (setq raw_val (vl-string-trim " \"\t," (substr line (+ pos_colon 2))))
+            (setq current_area (distof raw_val))
+            
+            ;; Once both name and area are extracted for the object, append to list
+            (if (and current_name current_area)
+              (progn
+                (setq shapes (append shapes (list (list (cons "name" current_name) (cons "area" current_area)))))
+                ;; Reset for the next object block
+                (setq current_name nil
+                      current_area nil)
+              )
+            )
+          )
+        )
+      )
+      (close f_in)
+    )
+  )
+  shapes ;; Returns the filtered list of history shapes
+)
+
 ;; Command: Auto-scan area for shapes
 (defun C:COLSCAN (/ p1 p2 ss i ent shape_data all_shapes result_file python_path python_exe original_count duplicate_count confirm tolerance_input tolerance)
   (princ "\n=== CAD Column Auto-Scanner ===")
@@ -479,17 +577,36 @@
                 (setq i (1+ i))
               )
               
-              ;; Remove shapes that are too close
+              ;; Remove shapes that are too close (This is your existing code)
               (setq original_count (length all_shapes))
               (setq all_shapes (remove-duplicate-shapes all_shapes tolerance))
               (setq duplicate_count (- original_count (length all_shapes)))
               
+              ;; ==========================================================
+              ;; NEW LOGIC: LOAD HISTORY & CROSS-CHECK AREA CONSISTENCY
+              ;; ==========================================================
+              (setq result_file (strcat (getvar "DWGPREFIX") "column_data.json"))
+              (setq history_shapes '())
+              
+              ;; 1. Load historical data if file exists
+              (if (findfile result_file)
+                (setq history_shapes (load-shapes-from-json result_file))
+              )
+              
+              ;; 2. Combine history data with newly scanned data
+              (setq global_shapes (append history_shapes all_shapes))
+              
+              ;; 3. Run consistency check on the combined global data
+              ;; (If a name has different areas between scans, it will trigger the warning)
+              (setq error_count (check-area-consistency global_shapes))
+              ;; ==========================================================
+              
               ;; Display summary
-              (princ (strcat "\n\n✓ Total shapes detected: " (itoa original_count)))
+              (princ (strcat "\n\n✓ Total shapes detected in this scan: " (itoa original_count)))
               (if (> duplicate_count 0)
                 (princ (strcat "\n⚠ Removed " (itoa duplicate_count) " shape(s) within " (rtos tolerance 2 2) "mm from each other"))
               )
-              (princ (strcat "\n✓ Unique shapes: " (itoa (length all_shapes))))
+              (princ (strcat "\n✓ Unique shapes in this scan: " (itoa (length all_shapes))))
               
               ;; Ask to save
               (if (> (length all_shapes) 0)
