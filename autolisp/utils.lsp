@@ -204,6 +204,76 @@
   )
 )
 
+(defun highlight-shape-permanent (shape / shape_type points centroid radius pt1 pt2 i offset_points highlight_ent)
+  "Draw permanent highlight around shape (does not auto-delete)"
+  (setq shape_type (cdr (assoc "type" shape)))
+  (setq points (cdr (assoc "points" shape)))
+  (setq centroid (cdr (assoc "centroid" shape)))
+  
+  (cond
+    ;; Circle - draw circle with radius using entmake
+    ((= shape_type "circle")
+     (setq radius (cdr (assoc "radius" shape)))
+     (if (and radius centroid)
+       (progn
+         ;; Ensure lineweight display is on
+         (setvar "LWDISPLAY" 1)
+         
+         ;; Create yellow circle entity directly
+         (entmake 
+           (list
+             (cons 0 "CIRCLE")
+             (cons 10 (list (car centroid) (cadr centroid) 0.0))
+             (cons 40 (* radius 1.05))  ; radius (5% larger)
+             (cons 62 2)  ; color = yellow
+             (cons 370 100)  ; lineweight = 1.00mm
+           )
+         )
+         (setq highlight_ent (entlast))
+       )
+     )
+    )
+    
+    ;; Polygon/Polyline - draw offset polyline
+    ((or (= shape_type "polygon") (= shape_type "lwpolyline") (= shape_type "polyline"))
+     (if points
+       (progn
+         ;; Ensure lineweight display is on
+         (setvar "LWDISPLAY" 1)
+         
+         ;; Calculate offset points (slightly outward from centroid)
+         (setq offset_points '())
+         (foreach pt points
+           (setq pt1 (list (car pt) (cadr pt) (if (caddr pt) (caddr pt) 0.0)))
+           ;; Offset 5% outward from centroid
+           (setq pt2 (list
+             (+ (car pt1) (* (- (car pt1) (car centroid)) 0.05))
+             (+ (cadr pt1) (* (- (cadr pt1) (cadr centroid)) 0.05))
+             (caddr pt1)
+           ))
+           (setq offset_points (append offset_points (list pt2)))
+         )
+         
+         ;; Draw yellow polyline
+         (command "_.PLINE")
+         (foreach pt offset_points
+           (command pt)
+         )
+         (command "_C")  ;; Close
+         
+         ;; Set to yellow and thicker lineweight
+         (setq highlight_ent (entlast))
+         (if highlight_ent
+           (command "_.CHPROP" highlight_ent "" "_C" "2" "_LW" "100" "")
+         )
+       )
+     )
+    )
+  )
+  
+  highlight_ent  ; Return entity handle
+)
+
 (defun highlight-shape (shape / shape_type points centroid radius pt1 pt2 i offset_points highlight_ent)
   "Draw highlight around shape and flash for 1 second"
   (setq shape_type (cdr (assoc "type" shape)))

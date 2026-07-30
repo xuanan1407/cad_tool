@@ -37,6 +37,15 @@ The Python script that processes exported JSON data:
 
 ## Key Features
 
+### 🆕 Group Search (v4.1)
+- **Find multiple shapes at once by prefix!** 🔍
+- Command `COLFINDGROUP` - searches for all shapes with matching prefix
+- **Example**: Enter "C1" → highlights C1_001, C1_002, C1_003, ... simultaneously
+- **Permanent highlights** - yellow outlines stay until you delete/undo them
+- **Auto-zoom** - automatically fits all found shapes in view
+- **UI Dialog support** - available in the main dialog menu
+- See [FEATURE_FINDGROUP.md](FEATURE_FINDGROUP.md) for detailed instructions
+
 ### 🆕 Reverse Lookup (v4.0)
 - **Find shapes in CAD from Excel!** 🎯
 - Each shape gets unique ID: `COL_A1_001`, `COL_B2_001`, etc.
@@ -268,7 +277,10 @@ Confirms deletion and removes all saved data from JSON file.
 | `COLSCAN` | **Auto-scan area** - Select region and detect all shapes automatically |
 | `COLINSPECT` | **Manual mode** - Click points to create custom polygon |
 | `COLFINDPOLY` | **🆕 Find shape** - Highlight a shape in CAD by its ID (e.g., COL_A1_001) |
+| `COLFINDGROUP` | **🆕 Find group** - Highlight multiple shapes by prefix (e.g., "C1" → C1_001, C1_002, ...) |
+| `COLLIST` | **List shapes** - Display all saved shape IDs |
 | `COLCLEAR` | Clear all saved shapes and start fresh |
+| `COLUI` | Open UI dialog with all features |
 
 ---
 
@@ -563,6 +575,7 @@ Date: May 27, 2026
 - ✅ **Reverse lookup:** Excel buttons → CAD highlighting
 
 ### Changelog
+- **v4.1** (2026-07-27): 🆕 **Group Search Feature** - Find and highlight multiple shapes by prefix! Added COLFINDGROUP command, permanent highlights, auto-zoom, and UI dialog integration
 - **v4.0** (2026-05-27): 🆕 **Reverse Lookup Feature** - Find shapes in CAD from Excel! Added Shape IDs, COLFINDPOLY command, Excel buttons, and batch file integration
 - **v3.4** (2026-05-21): Added Summary sheet with statistics by name, perimeter calculation for all shapes
 - **v3.3** (2026-05-21): Simplified to distance-only check (centroid-to-centroid), removed area comparison

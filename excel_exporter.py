@@ -44,7 +44,9 @@ class ExcelExporter:
             wb.save(output_file)
             print(f"\n✓ Excel file created with {len(self.polygons)} shape(s): {output_file}")
             print(f"✓ Summary sheet created with statistics by name")
-            print(f"✓ Shape reverse lookup enabled - click '🔍 Find in CAD' buttons in Detail sheet")
+            print(f"✓ Shape reverse lookup enabled:")
+            print(f"  • Click shape names in Summary sheet to find ALL shapes with that prefix")
+            print(f"  • Click '🔍 Find in CAD' buttons in Detail sheet to find individual shapes")
             
             return output_file
             
@@ -64,6 +66,7 @@ class ExcelExporter:
             # Find FindShape executable or Python script
             finder_exe, is_executable = self._find_shape_finder()
             
+            # Create VBScript for individual shapes
             for polygon in self.polygons:
                 shape_id = polygon.get('id', '')
                 if shape_id:
@@ -91,6 +94,40 @@ class ExcelExporter:
                         else:
                             f.write(f'python "{finder_exe}" {shape_id}\n')
                         # No pause - auto close after execution
+            
+            # Create VBScript for shape groups (by prefix)
+            # Get unique shape prefixes
+            shape_prefixes = set()
+            for polygon in self.polygons:
+                name = polygon.get('name', '')
+                if name:
+                    shape_prefixes.add(name)
+            
+            # Find find_group.py or FindGroup.exe
+            group_finder_exe, group_is_executable = self._find_group_finder()
+            
+            for prefix in shape_prefixes:
+                # Create VBScript for group finding
+                vbs_file = os.path.join(scripts_folder, f"find_group_{prefix}.vbs")
+                
+                with open(vbs_file, 'w') as f:
+                    f.write('Set objShell = CreateObject("WScript.Shell")\n')
+                    if group_is_executable:
+                        f.write(f'objShell.Run "\""{group_finder_exe}\"" {prefix}", 0, False\n')
+                    else:
+                        python_exe = self._find_python()
+                        f.write(f'objShell.Run "\""{python_exe}\"" \""{group_finder_exe}\"" {prefix}", 0, False\n')
+                
+                # Also create .bat file
+                batch_file = os.path.join(scripts_folder, f"find_group_{prefix}.bat")
+                with open(batch_file, 'w') as f:
+                    f.write('@echo off\n')
+                    f.write(f'cd /d "{self.output_folder}"\n')
+                    if group_is_executable:
+                        f.write(f'"{group_finder_exe}" {prefix}\n')
+                    else:
+                        f.write(f'python "{group_finder_exe}" {prefix}\n')
+                        
         except Exception as e:
             print(f"⚠ Warning: Could not create batch files: {e}")
     
@@ -128,6 +165,29 @@ class ExcelExporter:
         # Last resort: try current directory
         py_path = os.path.abspath("find_shape.py")
         print(f"⚠ Using find_shape.py from current directory")
+        return (py_path, False)
+    
+    def _find_group_finder(self):
+        """Find FindGroup.exe or find_group.py
+        Returns: (path, is_executable)
+        """
+        # Priority 1: FindGroup.exe in same folder as output
+        exe_path = os.path.abspath(os.path.join(self.output_folder, "FindGroup.exe"))
+        if os.path.exists(exe_path):
+            return (exe_path, True)
+        
+        # Priority 2: FindGroup.exe in current directory
+        exe_path = os.path.abspath("FindGroup.exe")
+        if os.path.exists(exe_path):
+            return (exe_path, True)
+        
+        # Fallback: find_group.py
+        py_path = os.path.abspath(os.path.join(self.output_folder, "find_group.py"))
+        if os.path.exists(py_path):
+            return (py_path, False)
+        
+        # Last resort: try current directory
+        py_path = os.path.abspath("find_group.py")
         return (py_path, False)
     
     def _find_python(self):
@@ -190,6 +250,15 @@ class ExcelExporter:
             cell.fill = header_fill
             cell.alignment = Alignment(horizontal="center", vertical="center")
             cell.border = border
+            
+            # Add comment to Name column to explain clickable feature
+            if col == 1:
+                from openpyxl.comments import Comment
+                comment = Comment(
+                    "💡 TIP: Click any shape name to find ALL shapes with that prefix in AutoCAD!\n\nExample: Click 'C1' to highlight all C1_001, C1_002, etc.",
+                    "CAD Inspector"
+                )
+                cell.comment = comment
         
         # Data
         row = 4
@@ -201,8 +270,15 @@ class ExcelExporter:
             # Get first shape ID with this name
             sample_id = next((p.get('id', 'N/A') for p in self.polygons if p.get('name') == name), 'N/A')
             
+            # Name column with "Find All" button
             ws.cell(row=row, column=1).value = name
             ws.cell(row=row, column=1).border = border
+            ws.cell(row=row, column=1).font = Font(bold=True, color="0000FF", underline="single")
+            
+            # Add hyperlink to find all shapes with this prefix
+            scripts_folder = os.path.join(self.output_folder, "scripts")
+            vbs_file = os.path.join(scripts_folder, f"find_group_{name}.vbs")
+            ws.cell(row=row, column=1).hyperlink = vbs_file
             
             ws.cell(row=row, column=2).value = stat['count']
             ws.cell(row=row, column=2).alignment = Alignment(horizontal="center")

@@ -316,6 +316,143 @@
 )
 
 ;; ========================================
+;; COMMAND: COLFINDGROUP
+;; Find and highlight multiple shapes by prefix
+;; ========================================
+
+(defun C:COLFINDGROUP (/ prefix result_file shapes shape count highlight_ents centroid_list 
+                        min_x max_x min_y max_y zoom_center zoom_height user_input old_error)
+  
+  ;; Error handler to clean up highlights
+  (defun cleanup-highlights (msg)
+    ;; Delete all highlight entities
+    (if highlight_ents
+      (progn
+        (foreach ent highlight_ents
+          (if (and ent (not (null (entget ent))))
+            (entdel ent)
+          )
+        )
+        (command "_.REDRAW")
+        (princ "\n✓ Highlights cleaned up")
+      )
+    )
+    ;; Restore old error handler
+    (setq *error* old_error)
+    ;; Display error message if not a user cancel
+    (if (and msg (not (member msg '("Function cancelled" "quit / exit abort"))))
+      (princ (strcat "\nError: " msg))
+    )
+    (princ)
+  )
+  
+  ;; Save old error handler and set new one
+  (setq old_error *error*)
+  (setq *error* cleanup-highlights)
+  
+  (print-header "Find Shape Group by Prefix")
+  
+  ;; Check if prefix is passed via global variable (from Python/Excel)
+  (if (and (boundp '*COLFIND_PREFIX*) *COLFIND_PREFIX*)
+    (progn
+      (setq prefix *COLFIND_PREFIX*)
+      (princ (strcat "\nSearching for prefix: " prefix))
+      (setq *COLFIND_PREFIX* nil)  ; Clear after use
+    )
+    ;; Otherwise, ask user
+    (setq prefix (getstring T "\nEnter shape prefix (e.g., C1, C2): "))
+  )
+  
+  (if prefix
+    (progn
+      (setq result_file (get-result-file))
+      
+      (if (file-exists-p result_file)
+        (progn
+          (princ (strcat "\nSearching for shapes with prefix: " prefix "..."))
+          (setq shapes (find-shapes-by-prefix prefix result_file))
+          
+          (if shapes
+            (progn
+              (setq count (length shapes))
+              (princ (strcat "\n✓ Found " (itoa count) " shape(s) with prefix '" prefix "'"))
+              
+              ;; Highlight all shapes permanently
+              (setq highlight_ents '())
+              (setq centroid_list '())
+              
+              (foreach shape shapes
+                (princ (strcat "\n  - " (cdr (assoc "id" shape)) 
+                              " (" (cdr (assoc "type" shape)) 
+                              ", Area: " (rtos (cdr (assoc "area" shape)) 2 2) ")"))
+                
+                ;; Draw permanent highlight
+                (setq highlight_ent (highlight-shape-permanent shape))
+                (if highlight_ent
+                  (setq highlight_ents (append highlight_ents (list highlight_ent)))
+                )
+                
+                ;; Collect centroids for zoom calculation
+                (setq centroid_list (append centroid_list (list (cdr (assoc "centroid" shape)))))
+              )
+              
+              ;; Calculate bounding box for zoom
+              (if centroid_list
+                (progn
+                  (setq min_x (apply 'min (mapcar 'car centroid_list)))
+                  (setq max_x (apply 'max (mapcar 'car centroid_list)))
+                  (setq min_y (apply 'min (mapcar 'cadr centroid_list)))
+                  (setq max_y (apply 'max (mapcar 'cadr centroid_list)))
+                  
+                  ;; Calculate zoom center and size
+                  (setq zoom_center (list (/ (+ min_x max_x) 2.0) (/ (+ min_y max_y) 2.0) 0.0))
+                  (setq zoom_height (* (max (- max_x min_x) (- max_y min_y)) 1.5))  ; 1.5x for padding
+                  
+                  ;; Ensure zoom height is positive and reasonable
+                  (if (< zoom_height 1.0)
+                    (setq zoom_height 100.0)  ; Default minimum zoom
+                  )
+                  
+                  ;; Zoom to show all shapes
+                  (command "_.ZOOM" "_C" zoom_center zoom_height "")
+                )
+              )
+              
+              (command "_.REDRAW")
+              (princ "\n\n✓ Yellow highlights drawn")
+              (princ "\n")
+              
+              ;; Wait for any key to delete highlights
+              (setq user_input (getstring "\nPress Enter to remove highlights: "))
+              
+              ;; Delete all highlight entities (always remove, regardless of input)
+              (if highlight_ents
+                (progn
+                  (foreach ent highlight_ents
+                    (if (and ent (not (null (entget ent))))
+                      (entdel ent)
+                    )
+                  )
+                  (command "_.REDRAW")
+                  (princ "\n✓ Highlights removed")
+                )
+              )
+            )
+            (print-error (strcat "No shapes found with prefix: " prefix))
+          )
+        )
+        (print-error "No polygon data file found. Run COLINSPECT or COLSCAN first.")
+      )
+    )
+    (print-error "No prefix provided!")
+  )
+  
+  ;; Restore old error handler
+  (setq *error* old_error)
+  (princ)
+)
+
+;; ========================================
 ;; COMMAND: COLLIST
 ;; List all shape IDs in JSON file
 ;; ========================================

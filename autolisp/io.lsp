@@ -324,6 +324,52 @@
 )
 
 ;; ========================================
+;; FIND SHAPES BY PREFIX (GROUP SEARCH)
+;; ========================================
+
+(defun find-shapes-by-prefix (prefix filename / file line content shapes shape found_shapes shape_id_str)
+  "Find all shapes with IDs starting with the given prefix"
+  (setq found_shapes '())
+  
+  (if (findfile filename)
+    (progn
+      ;; Read entire file
+      (setq file (open filename "r"))
+      (setq content "")
+      
+      (if file
+        (progn
+          (while (setq line (read-line file))
+            (setq content (strcat content line "\n"))
+          )
+          (close file)
+          
+          ;; Parse JSON
+          (setq shapes (parse-json-shapes content))
+          
+          ;; Find all shapes with matching prefix (case-insensitive)
+          (foreach shape shapes
+            (setq shape_id_str (cdr (assoc "id" shape)))
+            (if shape_id_str
+              (progn
+                (setq shape_id_str (vl-string-trim " \t\n\r" shape_id_str))
+                ;; Check if ID starts with prefix
+                (if (= (strcase (substr shape_id_str 1 (strlen prefix)) T)
+                       (strcase prefix T))
+                  (setq found_shapes (append found_shapes (list shape)))
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+  
+  found_shapes
+)
+
+;; ========================================
 ;; JSON PARSER (SIMPLIFIED)
 ;; ========================================
 
